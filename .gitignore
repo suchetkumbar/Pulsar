@@ -1,0 +1,60 @@
+# --- Private project docs (reference only, never published) ---
+docs/
+
+# --- Datasets & derived data (licences forbid redistribution) ---
+data/
+*.npz
+*.mat
+*.avi
+*.mp4
+
+# --- Experiment outputs ---
+outputs/
+runs/
+mlruns/
+wandb/
+lightning_logs/
+multirun/
+
+# --- Model artifacts ---
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tflite
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- Third-party baseline checkout (cloned separately) ---
+third_party/
+
+# --- Android / Gradle ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Secrets ---
+.env
+.env.*
