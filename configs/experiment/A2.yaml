@@ -1,0 +1,5 @@
+# @package _global_
+# A2: A1 + naive colour-only tone augmentation
+name: A2_naive_tone
+model: {adaptive: false}
+aug: {standard: true, phystone: false, illumsim: false, naive_tone_p: 0.5}

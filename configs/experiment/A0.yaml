@@ -1,0 +1,5 @@
+# @package _global_
+# A0: TraceNet, uniform patch pooling, no augmentation
+name: A0_base
+model: {adaptive: false}
+aug: {standard: false, phystone: false, illumsim: false, naive_tone_p: 0.0}

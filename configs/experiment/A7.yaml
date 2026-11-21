@@ -1,0 +1,6 @@
+# @package _global_
+# A7: A5 with colour-only PhysTone (no surface term, no noise top-up) -> is the SNR mechanism key?
+name: A7_tone_colour_only
+model: {adaptive: true}
+aug: {standard: true, phystone: true, illumsim: true, naive_tone_p: 0.0, surface_frac: 0.0, phystone_noise_topup: false}
+train: {supervise_rel: true}

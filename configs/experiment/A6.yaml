@@ -1,0 +1,6 @@
+# @package _global_
+# A6: A5 without reliability (SNR) supervision -> plain learned attention
+name: A6_no_rel_sup
+model: {adaptive: true}
+aug: {standard: true, phystone: true, illumsim: true, naive_tone_p: 0.0}
+train: {supervise_rel: false}

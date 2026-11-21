@@ -1,0 +1,60 @@
+[project]
+name = "pulsar"
+version = "0.1.0"
+description = "Skin-tone-fair, on-device camera heart-rate estimation (remote PPG)"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "pyarrow>=15",
+    "scikit-learn>=1.4",
+    "tqdm>=4.66",
+    "matplotlib>=3.8",
+    "hydra-core>=1.3",
+    "omegaconf>=2.3",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+# Face landmarks, video decoding, webcam demo (mediapipe ships opencv-contrib).
+vision = ["mediapipe>=0.10.14", "opencv-contrib-python>=4.9"]
+# Training / export. torch comes from the CUDA index below.
+ml = ["torch>=2.4"]
+
+[tool.uv]
+default-groups = ["dev", "vision"]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pulsar"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "NPY"]
+ignore = ["E741"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "vision: needs opencv/mediapipe",
+    "network: downloads an asset",
+]

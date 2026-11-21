@@ -1,0 +1,5 @@
+# @package _global_
+# A4: A3 + IllumSim-IN (C2)
+name: A4_phystone_illumsim
+model: {adaptive: false}
+aug: {standard: true, phystone: true, illumsim: true, naive_tone_p: 0.0}

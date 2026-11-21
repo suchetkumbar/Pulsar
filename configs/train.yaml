@@ -1,0 +1,61 @@
+# TraceNet training. Examples:
+#   uv run python scripts/train.py                                  # synthetic smoke run
+#   uv run python scripts/train.py data.source=cache aug.phystone=true aug.illumsim=true
+#   uv run python scripts/train.py -m train.seed=0,1,2 name=A5_full  # multirun over seeds
+defaults:
+  - _self_
+
+name: tracenet
+runs_root: runs
+
+data:
+  source: synthetic          # synthetic | cache
+  caches: [data/cache/traces/ubfc, data/cache/traces/pure]
+  split_file: null           # splits/<name>.json (subject ids); null = seeded random split
+  val_frac: 0.15
+  test_frac: 0.0
+  fs: 30.0
+  win_s: 10.0
+  stride_s: 1.0
+  synthetic:
+    n_subjects: 24
+    videos_per_subject: 2
+    duration_s: 40.0
+    stride_s: 2.0
+
+model:
+  width: 48
+  enc_blocks: 4
+  dec_blocks: 2
+  adaptive: true             # C3 patch attention (false = uniform pooling, ablation A0)
+
+aug:
+  standard: true
+  naive_tone_p: 0.0          # A2
+  phystone: false            # C1
+  phystone_p: 0.5
+  surface_frac: 0.10
+  phystone_noise_topup: true
+  illumsim: false            # C2
+  illumsim_p: 0.5
+
+train:
+  epochs: 30
+  batch: 64
+  lr: 1.0e-3
+  wd: 1.0e-2
+  warmup_epochs: 2
+  workers: 0
+  seed: 0
+  device: auto
+  w_rel: 0.1
+  supervise_rel: true        # false = plain attention (ablation A6)
+  select: worst_group_mae
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: outputs/hydra/${now:%Y%m%d-%H%M%S}_${name}
+  sweep:
+    dir: outputs/hydra/multirun/${now:%Y%m%d-%H%M%S}_${name}

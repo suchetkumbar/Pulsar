@@ -1,0 +1,5 @@
+# @package _global_
+# A1: A0 + standard augmentation (gain, patch dropout)
+name: A1_standard
+model: {adaptive: false}
+aug: {standard: true, phystone: false, illumsim: false, naive_tone_p: 0.0}
