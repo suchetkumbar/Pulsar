@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 
 from pulsar.preprocess.face import MediaPipeLandmarker
-from pulsar.preprocess.live import live_window
+from pulsar.preprocess.live import BUFFER_EXTRA_S, live_window
 from pulsar.preprocess.patches import PatchSpec
 from pulsar.preprocess.traces import TraceExtractor
 from pulsar.signal.classical import pos
@@ -152,7 +152,7 @@ def main() -> None:
             lmk = lm.detect(rgb_frame, int(t * 1000))
             st = ex.process(rgb_frame, lmk)
             buf.append((t, st.rgb_lin, st.valid, st.n_pix, st.motion))
-            while buf and buf[0][0] < t - (WIN_S + 2):
+            while buf and buf[0][0] < t - (WIN_S + BUFFER_EXTRA_S):
                 buf.popleft()
             boxes = None
             if lmk is not None:

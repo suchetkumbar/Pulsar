@@ -19,7 +19,9 @@ import torch
 import torch.nn as nn
 
 from pulsar.models.tracenet import TraceNet, hr_from_logits
-from pulsar.preprocess.patches import FACE_LEFT_EDGE, FACE_RIGHT_EDGE, PatchSpec
+from pulsar.preprocess.live import window_contract
+from pulsar.preprocess.patches import PatchSpec
+from pulsar.preprocess.traces import extractor_contract
 
 INPUT_NAMES = ["x", "valid", "n_pix", "motion"]
 OUTPUT_NAMES = ["bvp", "hr", "hr_mode", "conf", "alpha", "hr_logits"]
@@ -164,12 +166,9 @@ def model_metadata(model: TraceNet, spec: PatchSpec | None = None) -> dict:
         "num_patches": int(region_ids.size),
         "bpm_grid": [model.cfg.bpm_lo, model.cfg.bpm_hi, 1.0],
         "temperature": float(getattr(model, "temperature", 1.0)),
-        "patch_spec": spec.to_meta()
-        | {
-            "landmark_ids": spec.landmark_ids.tolist(),
-            "region_ids": spec.region_ids.tolist(),
-            "face_width_landmarks": [int(FACE_LEFT_EDGE), int(FACE_RIGHT_EDGE)],
-        },
+        "patch_spec": spec.contract(),
+        "extractor": extractor_contract(),
+        "window": window_contract(model.cfg.fs, model.cfg.t_len / model.cfg.fs),
         "num_params": model.num_params(),
     }
 

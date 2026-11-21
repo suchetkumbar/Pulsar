@@ -1,20 +1,21 @@
 # --- Private project docs (reference only, never published) ---
-docs/
+/docs/
 
 # --- Datasets & derived data (licences forbid redistribution) ---
-data/
+# Leading '/' = repo root only (a bare 'data/' also hid the src/pulsar/data package).
+/data/
 *.npz
 *.mat
 *.avi
 *.mp4
 
 # --- Experiment outputs ---
-outputs/
-runs/
-mlruns/
-wandb/
-lightning_logs/
-multirun/
+/outputs/
+/runs/
+/mlruns/
+/wandb/
+/lightning_logs/
+/multirun/
 
 # --- Model artifacts ---
 *.ckpt
@@ -35,12 +36,13 @@ __pycache__/
 .ipynb_checkpoints/
 
 # --- Third-party baseline checkout (cloned separately) ---
-third_party/
+/third_party/
 
 # --- Android / Gradle ---
 android/.gradle/
-android/build/
-android/app/build/
+android/.kotlin/
+android/**/build/
+android/app/src/main/assets/
 android/local.properties
 android/.idea/
 android/captures/

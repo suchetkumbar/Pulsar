@@ -16,7 +16,7 @@ from pulsar.aug.pipeline import AugConfig
 from pulsar.data.windows import Windows
 from pulsar.eval.metrics import fairness_summary, ita_group, subject_level
 from pulsar.eval.selective import fit_temperature
-from pulsar.models.losses import total_loss
+from pulsar.models.losses import distill_loss, total_loss
 from pulsar.models.tracenet import TraceNet, TraceNetConfig, hr_from_logits
 from pulsar.train.dataset import WindowDataset
 from pulsar.train.runlog import RunLog
@@ -39,6 +39,11 @@ class TrainConfig:
     group_col: str = "ita_group"  # validation worst-group selection
     select: str = "worst_group_mae"  # or "mae"
     grad_clip: float = 5.0
+    # knowledge distillation (phone student): path to a trained teacher best.pt, or None
+    teacher: str | None = None
+    w_kd: float = 1.0  # HR-spectrum KL weight
+    w_kd_bvp: float = 0.5  # waveform correlation weight
+    kd_tau: float = 2.0  # softmax temperature for the KL term
 
 
 def resolve_device(name: str) -> torch.device:
@@ -134,6 +139,7 @@ def train(
         },
         root=runs_root,
     )
+    teacher = load_teacher(cfg.teacher, model_cfg, region_ids, device) if cfg.teacher else None
     ds_tr = WindowDataset(train_ws, aug, model_cfg.fs, cfg.seed)
     ds_va = WindowDataset(val_ws, None, model_cfg.fs)
     dl = DataLoader(
@@ -174,6 +180,12 @@ def train(
                 cfg.w_rel,
                 cfg.supervise_rel and model_cfg.adaptive,
             )
+            if teacher is not None:
+                with torch.no_grad():
+                    t_out = teacher(b["x"], b["valid"], b["n_pix"], b["motion"])
+                l_kd, kd_logs = distill_loss(out, t_out, cfg.kd_tau, cfg.w_kd, cfg.w_kd_bvp)
+                loss = loss + l_kd
+                logs |= kd_logs
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
@@ -207,6 +219,20 @@ def train(
     best_metrics["temperature"] = temperature
     log.summary({"best": best_metrics, "n_train_windows": len(ds_tr), "n_val_windows": len(ds_va)})
     return model, log, best_metrics
+
+
+def load_teacher(path: str | Path, student_cfg: TraceNetConfig, region_ids, device) -> TraceNet:
+    """Frozen teacher for distillation; must share the student's input contract (fs, T, patches, bpm grid)."""
+    teacher = load_model(path, device)
+    tc = teacher.cfg
+    for k in ("fs", "t_len", "bpm_lo", "bpm_hi"):
+        if getattr(tc, k) != getattr(student_cfg, k):
+            raise ValueError(f"teacher {k}={getattr(tc, k)} != student {getattr(student_cfg, k)}")
+    if not np.array_equal(teacher.features.region_onehot.argmax(-1).cpu().numpy(), np.asarray(region_ids)):
+        raise ValueError("teacher patch layout differs from the student's")
+    for p in teacher.parameters():
+        p.requires_grad_(False)
+    return teacher.eval()
 
 
 def load_model(path: str | Path, device="cpu") -> TraceNet:

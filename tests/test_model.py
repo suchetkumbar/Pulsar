@@ -88,3 +88,41 @@ def test_training_smoke_reduces_error(ws, tmp_path):
     )
     assert (log.dir / "metrics.csv").exists() and (log.dir / "best.pt").exists()
     assert best["mae"] < 15.0
+
+
+def test_distill_loss_zero_when_student_matches_teacher():
+    from pulsar.models.losses import distill_loss
+
+    g = torch.Generator().manual_seed(0)
+    t_out = {"hr_logits": torch.randn(4, 161, generator=g), "bvp": torch.randn(4, 300, generator=g)}
+    same = {k: v.clone().requires_grad_(True) for k, v in t_out.items()}
+    loss, logs = distill_loss(same, t_out)
+    assert loss.item() < 1e-5 and logs["l_kd"] < 1e-5
+    other = {k: torch.randn_like(v).requires_grad_(True) for k, v in t_out.items()}
+    loss2, _ = distill_loss(other, t_out)
+    assert loss2.item() > 0.1
+    loss2.backward()  # gradients flow to the student only
+    assert other["hr_logits"].grad is not None and t_out["hr_logits"].grad is None
+
+
+def test_distillation_trains_a_student_from_a_teacher(ws, tmp_path):
+    from pulsar.train.loop import load_teacher
+
+    tr, va = ws[:5], ws[5:]
+    small = dict(enc_blocks=2, dec_blocks=1)
+    tc = TrainConfig(epochs=3, batch=8, lr=3e-3, device="cpu", warmup_epochs=1)
+    _, tlog, _ = train(
+        tr, va, TraceNetConfig(width=16, **small), tc, None, REG, "teacher", runs_root=tmp_path
+    )
+    teacher_ckpt = str(tlog.dir / "best.pt")
+    sc = TrainConfig(epochs=2, batch=8, lr=3e-3, device="cpu", warmup_epochs=1, teacher=teacher_ckpt)
+    _, slog, best = train(
+        tr, va, TraceNetConfig(width=8, **small), sc, None, REG, "student", runs_root=tmp_path
+    )
+    import pandas as pd
+
+    m = pd.read_csv(slog.dir / "metrics.csv")
+    assert {"l_kd", "l_kd_bvp"} <= set(m.columns) and m["l_kd"].notna().all()
+    assert np.isfinite(best["mae"])
+    with pytest.raises(ValueError):  # a teacher with another window length is rejected
+        load_teacher(teacher_ckpt, TraceNetConfig(width=8, t_len=150, **small), REG, "cpu")

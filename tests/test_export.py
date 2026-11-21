@@ -43,6 +43,12 @@ def test_metadata_is_the_patch_contract(model, tmp_path):
     with pytest.raises(ValueError):
         model_metadata(model, bad)
     assert np.isfinite(meta["fs_hz"])
+    # blocks the Android port reads instead of hard-coding (android/core Config.kt)
+    assert meta["patch_spec"]["region_names"] == list(spec.regions)
+    assert meta["window"]["t_len"] == meta["t_len"] and meta["window"]["fs_hz"] == meta["fs_hz"]
+    from pulsar.preprocess.traces import extractor_contract
+
+    assert meta["extractor"] == extractor_contract()
 
 
 def test_golden_files_roundtrip(model, tmp_path):

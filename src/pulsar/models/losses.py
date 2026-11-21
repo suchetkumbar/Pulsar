@@ -65,6 +65,28 @@ def reliability_loss(rel: torch.Tensor, snr_db: torch.Tensor, mask: torch.Tensor
     return (loss * m).sum() / m.sum().clamp(min=1)
 
 
+def distill_loss(
+    out: dict,
+    teacher_out: dict,
+    tau: float = 2.0,
+    w_logits: float = 1.0,
+    w_bvp: float = 0.5,
+) -> tuple[torch.Tensor, dict]:
+    """Knowledge distillation from a larger TraceNet (docs 04 §8, phone student).
+
+    * HR spectrum: tau^2 * KL(softmax(t / tau) || softmax(s / tau)) on the raw (uncalibrated) logits, so
+      the student inherits the teacher's *shape* of uncertainty, not just its arg-max (Hinton et al. 2015).
+    * Waveform: 1 - corr(student BVP, teacher BVP), zero lag (both see the same input frames).
+    The teacher sees the same augmented batch, so its robustness to IllumSim / PhysTone transfers.
+    """
+    t = teacher_out["hr_logits"].detach().float() / tau
+    s = out["hr_logits"].float() / tau
+    kl = F.kl_div(F.log_softmax(s, -1), F.log_softmax(t, -1), log_target=True, reduction="batchmean") * tau**2
+    lb = (1 - _corr(out["bvp"], teacher_out["bvp"].detach())).mean()
+    loss = w_logits * kl + w_bvp * lb
+    return loss, {"l_kd": kl.item(), "l_kd_bvp": lb.item()}
+
+
 def total_loss(
     out: dict,
     batch: dict,

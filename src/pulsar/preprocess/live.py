@@ -11,7 +11,23 @@ from __future__ import annotations
 
 import numpy as np
 
-from pulsar.preprocess.resample import resample
+from pulsar.preprocess.resample import MAX_GAP_S, resample
+
+BUFFER_EXTRA_S = 2.0  # ring buffer keeps win_s + this, so the grid's first samples are not edge-clamped
+
+
+def window_contract(fs: float, win_s: float) -> dict:
+    """Live-window parameters a port must mirror (model_meta.json "window")."""
+    return {
+        "fs_hz": fs,
+        "win_s": win_s,
+        "t_len": int(round(win_s * fs)),
+        "max_gap_s": MAX_GAP_S,
+        "buffer_s": win_s + BUFFER_EXTRA_S,
+        "grid": "uniform from the buffer's first timestamp; keep the last t_len samples",
+        "invalid_fill": 0.0,
+        "n_pix_motion": "NaN-aware mean over the last t_len raw frames",
+    }
 
 
 def live_window(

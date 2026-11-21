@@ -1,0 +1,29 @@
+[versions]
+agp = "9.5.2"
+kotlin = "2.4.21"
+onnxruntime = "1.32.0" # same version as the Python side (uv.lock) -> identical kernels for parity
+mediapipe = "1.2.3" # same as the Python mediapipe package used for training-time extraction
+camerax = "1.7.0"
+activity = "1.13.0"
+orgjson = "20260814"
+junit = "4.13.2"
+androidxTestJunit = "1.3.0"
+androidxTestRunner = "1.7.0"
+
+[libraries]
+onnxruntime-jvm = { module = "com.microsoft.onnxruntime:onnxruntime", version.ref = "onnxruntime" }
+onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
+orgjson = { module = "org.json:json", version.ref = "orgjson" }
+junit = { module = "junit:junit", version.ref = "junit" }
+mediapipe-tasks-vision = { module = "com.google.mediapipe:tasks-vision", version.ref = "mediapipe" }
+camerax-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
+androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

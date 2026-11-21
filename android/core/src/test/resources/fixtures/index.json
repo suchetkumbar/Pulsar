@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "generator": "scripts/make_android_fixtures.py",
+  "extractor": "extractor.json.gz",
+  "windows": [
+    "window_light_clean.json.gz",
+    "window_dark_jitter_drops.json.gz",
+    "window_medium_gaps.json.gz"
+  ]
+}

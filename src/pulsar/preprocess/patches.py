@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 FACE_LEFT_EDGE, FACE_RIGHT_EDGE = 234, 454  # face-oval extremes (subject's right / left)
+VIEW_ANGLE_K = 10  # nearest landmarks used for a patch's surface normal
 
 # region -> landmark indices (subject-centric: "_r" = subject's right = image left, unmirrored)
 DEFAULT_REGIONS: dict[str, list[int]] = {
@@ -59,6 +60,16 @@ class PatchSpec:
             "version": self.version,
         }
 
+    def contract(self) -> dict:
+        """to_meta() plus the flattened layout a port needs (model_meta.json "patch_spec")."""
+        return self.to_meta() | {
+            "region_names": list(self.regions),  # region_ids index this list (JSON objects are unordered)
+            "landmark_ids": self.landmark_ids.tolist(),
+            "region_ids": self.region_ids.tolist(),
+            "face_width_landmarks": [FACE_LEFT_EDGE, FACE_RIGHT_EDGE],
+            "view_angle_k": VIEW_ANGLE_K,
+        }
+
 
 def landmarks_to_pixels(lm_norm: np.ndarray, width: int, height: int) -> np.ndarray:
     """MediaPipe normalised landmarks [N, 3] -> pixel-scale 3-D points [N, 3] (z scaled by width)."""
@@ -82,7 +93,7 @@ def patch_boxes(lm_px: np.ndarray, spec: PatchSpec, width: int, height: int) -> 
     return np.stack([x0, y0, x1, y1], axis=1).astype(np.int64)
 
 
-def patch_view_angles(lm_px: np.ndarray, spec: PatchSpec, k: int = 10) -> np.ndarray:
+def patch_view_angles(lm_px: np.ndarray, spec: PatchSpec, k: int = VIEW_ANGLE_K) -> np.ndarray:
     """Angle (deg) between each patch's local surface normal and the camera axis.
 
     Normal = smallest principal axis of the k nearest landmarks (3-D), oriented toward the camera

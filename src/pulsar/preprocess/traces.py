@@ -21,9 +21,38 @@ from pulsar.preprocess.patches import (
     patch_boxes,
     patch_view_angles,
 )
-from pulsar.preprocess.skin_mask import SkinModel, specular_mask
+from pulsar.preprocess.skin_mask import (
+    CHI2_2DOF_99,
+    MIN_SEED_PIXELS,
+    SHADOW_FRAC,
+    SKIN_MOMENTUM,
+    SPECULAR_PCT,
+    SPECULAR_SAT_MAX,
+    SkinModel,
+    specular_mask,
+)
 
 SEED_REGIONS = ("cheek_r", "cheek_l")
+SEED_MAX_ANGLE_DEG = 50.0  # only near-frontal cheek patches seed the skin model
+SEED_MAX_PIXELS = 4000  # evenly spaced subsample above this (deterministic: the Android port mirrors it)
+CARRY_FRAMES = 3  # reuse the last landmarks for this many face-less frames
+
+
+def extractor_contract() -> dict:
+    """Constants a port must mirror (model_meta.json "extractor"); see android/core TraceExtractor.kt."""
+    return {
+        "linearize": "inverse sRGB LUT on uint8 before averaging",
+        "seed_regions": list(SEED_REGIONS),
+        "seed_max_angle_deg": SEED_MAX_ANGLE_DEG,
+        "seed_max_pixels": SEED_MAX_PIXELS,
+        "carry_frames": CARRY_FRAMES,
+        "skin_momentum": SKIN_MOMENTUM,
+        "skin_radius2": CHI2_2DOF_99,
+        "skin_min_seed_pixels": MIN_SEED_PIXELS,
+        "shadow_frac": SHADOW_FRAC,
+        "specular_pct": SPECULAR_PCT,
+        "specular_sat_max": SPECULAR_SAT_MAX,
+    }
 
 
 @dataclass
@@ -38,14 +67,15 @@ class FrameStats:
 
 
 class TraceExtractor:
-    def __init__(self, spec: PatchSpec | None = None, carry_frames: int = 3, seed: int = 0):
+    def __init__(self, spec: PatchSpec | None = None, carry_frames: int = CARRY_FRAMES):
         self.spec = spec or PatchSpec()
         self.lut = srgb8_to_linear_lut()
         self.skin = SkinModel()
         self.carry_frames = carry_frames
-        self._rng = np.random.default_rng(seed)
         self._last_lm: np.ndarray | None = None
         self._missing = 0
+        self.last_boxes: np.ndarray | None = None  # [P, 4] boxes / [P] view angles of the last frame
+        self.last_angles: np.ndarray | None = None
         ids = self.spec.landmark_ids
         names = list(self.spec.regions)
         rid = self.spec.region_ids
@@ -72,6 +102,7 @@ class TraceExtractor:
         if lm_norm is None:
             self._missing += 1
             if self._last_lm is None or self._missing > self.carry_frames:
+                self.last_boxes = self.last_angles = None
                 return self._empty()
             lm_norm = self._last_lm
         else:
@@ -89,6 +120,7 @@ class TraceExtractor:
         spec = self.spec
         boxes = patch_boxes(lm_px, spec, w, h)
         angles = patch_view_angles(lm_px, spec)
+        self.last_boxes, self.last_angles = boxes, angles
         crops_lin: list[np.ndarray] = []
         crops_u8: list[np.ndarray] = []
         for x0, y0, x1, y1 in boxes:
@@ -96,11 +128,11 @@ class TraceExtractor:
             crops_u8.append(c)
             crops_lin.append(self.lut[c])
 
-        seed = [crops_lin[p] for p in self._seed_idx if crops_lin[p].size and angles[p] < 50]
+        seed = [crops_lin[p] for p in self._seed_idx if crops_lin[p].size and angles[p] < SEED_MAX_ANGLE_DEG]
         if seed:
             s = np.concatenate(seed)
-            if s.shape[0] > 4000:
-                s = s[self._rng.choice(s.shape[0], 4000, replace=False)]
+            if s.shape[0] > SEED_MAX_PIXELS:
+                s = s[(np.arange(SEED_MAX_PIXELS) * s.shape[0]) // SEED_MAX_PIXELS]
             self.skin.update(s)
 
         p_n = spec.num_patches

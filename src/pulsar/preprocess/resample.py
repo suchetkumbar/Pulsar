@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import numpy as np
 
+MAX_GAP_S = 0.25  # grid samples inside a longer gap between valid frames are invalid
+
 
 def uniform_grid(t0: float, t1: float, fs: float) -> np.ndarray:
     n = int(np.floor((t1 - t0) * fs + 1e-9)) + 1
@@ -21,7 +23,7 @@ def resample(
     fs: float = 30.0,
     valid: np.ndarray | None = None,
     t_grid: np.ndarray | None = None,
-    max_gap_s: float = 0.25,
+    max_gap_s: float = MAX_GAP_S,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Resample x(t) along axis 0 onto a uniform grid.
 

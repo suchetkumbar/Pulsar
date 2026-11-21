@@ -51,6 +51,10 @@ train:
   w_rel: 0.1
   supervise_rel: true        # false = plain attention (ablation A6)
   select: worst_group_mae
+  teacher: null              # knowledge distillation: path to a trained teacher best.pt (phone student)
+  w_kd: 1.0                  # HR-spectrum KL weight
+  w_kd_bvp: 0.5              # teacher-waveform correlation weight
+  kd_tau: 2.0                # KL softmax temperature
 
 hydra:
   job:

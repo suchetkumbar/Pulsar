@@ -13,16 +13,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from pulsar.data.synthetic import SKIN_PRESETS, synthetic_bundle
+from pulsar.export.fixtures import WINDOW_CASES, WINDOW_TOLERANCE, window_case
 from pulsar.export.onnx_export import OUTPUT_NAMES, run_onnx
 from pulsar.preprocess.live import live_window
 
-TOLERANCE = {"x": 1e-5, "n_pix": 1e-3, "motion": 1e-6, "bvp": 2e-3, "hr": 0.05, "conf": 2e-3, "alpha": 1e-4}
-CASES = (  # name, skin, hr, jitter_ms, drop_frac, invalid patches
-    ("light_clean", "light", 68.0, 1.0, 0.0, ()),
-    ("dark_jitter_drops", "dark", 104.0, 6.0, 0.05, (0, 1, 2)),
-    ("medium_gaps", "medium", 82.0, 3.0, 0.0, (5,)),
-)
+TOLERANCE = WINDOW_TOLERANCE | {"bvp": 2e-3, "hr": 0.05, "conf": 2e-3, "alpha": 1e-4}
+CASES = WINDOW_CASES
 
 
 def _r(a, nd: int = 9) -> list:
@@ -52,48 +48,14 @@ def golden_case(
     fs: float = 30.0,
     win_s: float = 10.0,
 ) -> dict:
-    b = synthetic_bundle(
-        duration_s=buffer_s,
-        fs=fs,
-        hr_bpm=hr_bpm,
-        skin=SKIN_PRESETS[skin],
-        jitter_ms=jitter_ms,
-        drop_frac=drop_frac,
-        noise_a=2e-3,
-        seed=seed,
+    """`fixtures.window_case` + the ONNX model's outputs on that window."""
+    case, (_, x, v, npx, mot) = window_case(
+        name, skin, hr_bpm, jitter_ms, drop_frac, invalid, seed, buffer_s, fs, win_s
     )
-    rng = np.random.default_rng(seed)
-    valid = b.valid.copy()
-    valid[:, list(invalid)] = False
-    if name.endswith("gaps"):  # a 0.4 s face loss on some patches exercises the gap rule (> 0.25 s)
-        g = (b.t > 4.0) & (b.t < 4.4)
-        valid[np.ix_(g, np.arange(8, 16))] = False
-    n_pix = b.n_pix.astype(np.float64) + rng.integers(-20, 20, b.n_pix.shape)
-    motion = np.abs(rng.normal(0.0, 0.003, b.t.size))
-    raw = {"t": b.t, "rgb": b.rgb_lin.astype(np.float64), "valid": valid, "n_pix": n_pix, "motion": motion}
-    # round-trip the raw inputs through their JSON precision first, so expected == f(serialised raw)
-    raw_json = {k: (np.asarray(v).astype(int).tolist() if k == "valid" else _r(v)) for k, v in raw.items()}
-    rt = {k: np.asarray(v, dtype=bool if k == "valid" else np.float64) for k, v in raw_json.items()}
-    tg, x, v, npx, mot = live_window(rt["t"], rt["rgb"], rt["valid"], rt["n_pix"], rt["motion"], fs, win_s)
     outs = dict(zip(OUTPUT_NAMES, run_onnx(onnx_path, model_inputs(x, v, npx, mot)), strict=True))
-    return {
-        "name": name,
-        "description": f"synthetic {skin} skin, {hr_bpm:.0f} bpm, jitter {jitter_ms} ms, "
-        f"drops {drop_frac:.0%}, "
-        f"invalid patches {list(invalid)}",
-        "fs_hz": fs,
-        "win_s": win_s,
-        "raw": raw_json,
-        "expected": {
-            "t_grid": _r(tg),
-            "x": _r(x),
-            "valid": v.astype(int).tolist(),
-            "n_pix": _r(npx),
-            "motion": float(mot),
-            "outputs": {k: _r(o.ravel()) for k, o in outs.items() if k != "hr_logits"},
-        },
-        "tolerance": TOLERANCE,
-    }
+    case["expected"]["outputs"] = {k: _r(o.ravel()) for k, o in outs.items() if k != "hr_logits"}
+    case["tolerance"] = dict(TOLERANCE)
+    return case
 
 
 def write_golden(onnx_path: str | Path, out_dir: str | Path, cases=CASES) -> list[Path]:

@@ -33,6 +33,21 @@ Live demo on your own webcam (classical POS until a model is trained):
 uv run python -m pulsar.demo.webcam
 ```
 
+## Android
+
+`android/` contains the phone app:
+
+- `core/` is a pure-Kotlin port of the live pipeline. Its tests check it against the Python reference on the
+  desktop, and its patch means are bit-identical to Python's.
+- `app/` is CameraX + MediaPipe + ONNX Runtime Mobile, and it has no network permission.
+
+See [android/README.md](android/README.md). The core tests need only a JDK:
+
+```bash
+bash scripts/android_core_tests.sh fetch   # once: Kotlin compiler + test jars from Maven Central
+bash scripts/android_core_tests.sh
+```
+
 ## Datasets
 Pulsar uses public research datasets (UBFC-rPPG, PURE, MMPD) under their own licences. **No dataset content is distributed with this repository.** Request access from each dataset's authors.
 

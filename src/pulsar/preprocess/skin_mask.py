@@ -11,6 +11,11 @@ from __future__ import annotations
 import numpy as np
 
 CHI2_2DOF_99 = 9.21  # 99% quantile of chi^2 with 2 dof
+SKIN_MOMENTUM = 0.95
+MIN_SEED_PIXELS = 20
+SHADOW_FRAC = 0.35  # pixels darker than this x the face's median luminance are hair / deep shadow
+SPECULAR_PCT = 98.0
+SPECULAR_SAT_MAX = 0.15
 
 
 def chroma_rg(rgb: np.ndarray) -> np.ndarray:
@@ -22,7 +27,7 @@ def chroma_rg(rgb: np.ndarray) -> np.ndarray:
 class SkinModel:
     """Gaussian skin-chroma model with a running update across frames."""
 
-    def __init__(self, momentum: float = 0.95, radius2: float = CHI2_2DOF_99):
+    def __init__(self, momentum: float = SKIN_MOMENTUM, radius2: float = CHI2_2DOF_99):
         self.mean: np.ndarray | None = None
         self.cov: np.ndarray | None = None
         self.lum_median: float | None = None
@@ -31,7 +36,7 @@ class SkinModel:
 
     def update(self, seed_rgb_lin: np.ndarray) -> None:
         """Update from seed pixels [N, 3] (linear RGB)."""
-        if seed_rgb_lin.shape[0] < 20:
+        if seed_rgb_lin.shape[0] < MIN_SEED_PIXELS:
             return
         c = chroma_rg(seed_rgb_lin)
         mu = c.mean(axis=0)
@@ -53,11 +58,13 @@ class SkinModel:
         inv = np.linalg.inv(self.cov)
         m2 = np.einsum("...i,ij,...j->...", d, inv, d)
         lum = rgb_lin.mean(axis=-1)
-        not_shadow = lum > 0.35 * self.lum_median  # hair / deep shadow, relative to this face
+        not_shadow = lum > SHADOW_FRAC * self.lum_median  # relative to this face, never absolute
         return (m2 < self.radius2) & not_shadow
 
 
-def specular_mask(rgb_lin: np.ndarray, pct: float = 98.0, sat_max: float = 0.15) -> np.ndarray:
+def specular_mask(
+    rgb_lin: np.ndarray, pct: float = SPECULAR_PCT, sat_max: float = SPECULAR_SAT_MAX
+) -> np.ndarray:
     """True for pixels that are NOT specular highlights (bright *and* desaturated)."""
     lum = rgb_lin.mean(axis=-1)
     if lum.size == 0:

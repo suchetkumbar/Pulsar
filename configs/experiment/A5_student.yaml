@@ -1,0 +1,8 @@
+# @package _global_
+# Phone student: A5 recipe at width 32 (18.8 vs 27.4 ms, docs 07 §1), distilled from a trained A5 teacher.
+#   uv run --no-sync python scripts/train.py +experiment=A5_student train.teacher=runs/<A5 run>/best.pt
+# Always compare with the plain student (+experiment=A5 model.width=32): on synthetic data KD gave no gain (D25).
+name: A5_student_w32
+model: {width: 32, adaptive: true}
+aug: {standard: true, phystone: true, illumsim: true, naive_tone_p: 0.0}
+train: {supervise_rel: true, teacher: ???}
