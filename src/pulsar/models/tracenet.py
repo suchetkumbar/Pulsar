@@ -102,7 +102,9 @@ class TraceNet(nn.Module):
         logits = rel / torch.exp(self.log_tau) if self.cfg.adaptive else torch.zeros_like(rel)
         logits = logits.masked_fill(~mask, -1e4)
         alpha = torch.softmax(logits, dim=1)  # [B, P]
-        z = (alpha.reshape(b, p, 1, 1) * h.reshape(b, p, c, t)).sum(1)
+        h4 = h.reshape(b, p, c, t)
+        h4 = torch.where(mask.reshape(b, p, 1, 1), h4, torch.zeros_like(h4))  # 0 * NaN stays NaN; select
+        z = (alpha.reshape(b, p, 1, 1) * h4).sum(1)
         bvp = self.out(self.decoder(z)).squeeze(1)  # [B, T]
         return {
             "bvp": bvp,

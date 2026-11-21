@@ -13,7 +13,18 @@ Pulsar estimates heart rate from ordinary RGB face video, entirely on-device. It
 ```bash
 uv sync                     # core + dev tools + face landmarks (MediaPipe, OpenCV)
 uv sync --group ml          # + CUDA PyTorch for training
+uv sync --group export      # + ONNX / onnxruntime for on-device export
 uv run pytest               # synthetic-data test suite (no datasets needed)
+```
+
+On slow or per-connection-throttled networks, fetch big wheels with `scripts/pget.sh` (parallel, resumable,
+SHA-256-verified against `uv.lock`), install them with `uv pip install --no-deps <wheel>`, and use
+`uv run --no-sync`.
+
+Export a trained model for the phone (ONNX + parity check + golden test fixtures):
+
+```bash
+uv run python scripts/export_model.py --model runs/<run>/best.pt
 ```
 
 Live demo on your own webcam (classical POS until a model is trained):

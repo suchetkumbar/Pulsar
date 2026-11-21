@@ -54,7 +54,7 @@ def test_tracenet_shapes_and_masking(ws):
     v = b["valid"].clone()
     v[:, :16] = False
     out2 = model(b["x"], v, b["n_pix"], b["motion"])
-    assert float(out2["alpha"][:, :16].max()) < 1e-6  # invalid patches get no weight
+    assert out2["alpha"][:, :16].max().item() < 1e-6  # invalid patches get no weight
     assert model.num_params() < 300_000
 
 

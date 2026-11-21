@@ -78,10 +78,10 @@ def total_loss(
     lp = neg_pearson_lagged(out["bvp"], batch["bvp"])
     lc = hr_soft_ce(out["hr_logits"], batch["hr"], bpm)
     loss = w_pearson * lp + w_ce * lc
-    logs = {"l_pearson": float(lp), "l_ce": float(lc)}
+    logs = {"l_pearson": lp.item(), "l_ce": lc.item()}
     if supervise_rel and w_rel > 0:
         snr = patch_snr_db(out["pos_raw"].detach().float(), batch["hr"], fs)
         lr = reliability_loss(out["rel"], snr, out["patch_mask"])
         loss = loss + w_rel * lr
-        logs["l_rel"] = float(lr)
+        logs["l_rel"] = lr.item()
     return loss, logs

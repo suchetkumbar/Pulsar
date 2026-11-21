@@ -18,8 +18,8 @@ from pathlib import Path
 import numpy as np
 
 from pulsar.preprocess.face import MediaPipeLandmarker
+from pulsar.preprocess.live import live_window
 from pulsar.preprocess.patches import PatchSpec
-from pulsar.preprocess.resample import resample
 from pulsar.preprocess.traces import TraceExtractor
 from pulsar.signal.classical import pos
 from pulsar.signal.filters import postprocess_bvp
@@ -45,12 +45,10 @@ class Estimator:
             self.model = load_model(model_path, "cpu")
 
     def __call__(self, t, rgb, valid, n_pix, motion):
-        tg, x, v = resample(t, rgb, fs=FS, valid=valid)
-        n = int(WIN_S * FS)
-        if len(tg) < n:
+        win = live_window(t, rgb, valid, n_pix, motion, FS, WIN_S)
+        if win is None:
             return None
-        x, v = np.nan_to_num(x[-n:]), v[-n:]
-        npx = np.nanmean(n_pix[-n:], axis=0)
+        _, x, v, npx, motion = win
         if self.model is not None:
             return self._model(x, v, npx, motion)
         return self._pos(x, v, npx)
@@ -169,7 +167,7 @@ def main() -> None:
                     np.stack([b[1] for b in buf]),
                     np.stack([b[2] for b in buf]),
                     np.stack([b[3] for b in buf]).astype(float),
-                    float(np.mean([b[4] for b in buf])),
+                    np.array([b[4] for b in buf], dtype=float),
                 )
                 if res is not None:
                     hr, conf, bvp, weights = res
